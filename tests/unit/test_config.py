@@ -7,7 +7,7 @@ def test_defaults(monkeypatch):
     monkeypatch.delenv("DB_PATH", raising=False)
     monkeypatch.delenv("LOG_LEVEL", raising=False)
 
-    settings = Settings()
+    settings = Settings(_env_file=None)
 
     assert settings.db_path == "/data/gerboise.db"
     assert settings.log_level == "INFO"
@@ -21,7 +21,7 @@ def test_overrides(monkeypatch):
     monkeypatch.setenv("DB_PATH", "/tmp/custom.db")
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
 
-    settings = Settings()
+    settings = Settings(_env_file=None)
 
     assert settings.db_path == "/tmp/custom.db"
     assert settings.log_level == "DEBUG"

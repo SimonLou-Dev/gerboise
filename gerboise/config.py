@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     api_key: SecretStr
     db_path: str = "/data/gerboise.db"
     log_level: str = "INFO"
+    # Si renseigné, les commandes slash sont synchronisées sur cette guild (instantané,
+    # pratique pour un déploiement mono-serveur). Sinon, sync globale (propagation ~1h).
+    discord_guild_id: str | None = None
 
 
 settings = Settings()

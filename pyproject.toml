@@ -47,3 +47,11 @@ ignore = ["B008"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+build_command = ""
+commit_message = "chore(release): {version}\n\n[skip ci]"
+
+[tool.semantic_release.branches.main]
+match = "main"

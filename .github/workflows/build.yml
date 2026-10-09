@@ -18,8 +18,32 @@ jobs:
       - run: poetry run ruff check .
       - run: poetry run pytest
 
-  build:
+  # Analyse les commits conventionnels (feat:, fix:, ...) depuis le dernier tag et,
+  # s'il y a une raison de bumper, met à jour pyproject.toml + CHANGELOG.md, commit,
+  # tag (vX.Y.Z) et pousse directement sur main. N'a de sens que sur push main.
+  release:
     needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: release
+        uses: python-semantic-release/python-semantic-release@v9
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    needs: [test, release]
+    # `release` est skip sur un push de tag (pas sur main) : on ne veut pas que ça
+    # entraîne le skip de build, seul le succès de `test` doit être requis.
+    if: always() && needs.test.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,17 +58,23 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: image_name
         run: echo "name=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/gerboise" >> "$GITHUB_OUTPUT"
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ steps.image_name.outputs.name }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
+      - id: tags
+        run: |
+          IMAGE="${{ steps.image_name.outputs.name }}"
+          TAGS=""
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            TAGS="$IMAGE:latest"
+          fi
+          if [ "${{ needs.release.outputs.released }}" = "true" ]; then
+            TAGS="${TAGS:+$TAGS,}$IMAGE:${{ needs.release.outputs.tag }}"
+          fi
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAGS="${TAGS:+$TAGS,}$IMAGE:${{ github.ref_name }}"
+          fi
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.tags.outputs.tags }}

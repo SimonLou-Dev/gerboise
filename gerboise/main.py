@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     configure_logging()
     await init_db()
 
-    bot = GerboiseBot(session_factory=AsyncSessionLocal)
+    bot = GerboiseBot(session_factory=AsyncSessionLocal, guild_id=settings.discord_guild_id)
     task = asyncio.create_task(bot.start(settings.discord_bot_token.get_secret_value()))
     app.state.bot = bot
 

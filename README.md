@@ -20,6 +20,12 @@ poetry run pre-commit install
 poetry run uvicorn gerboise.main:app --reload --port 8080
 ```
 
+Génération d'une `API_KEY` aléatoire :
+
+```bash
+openssl rand -hex 32
+```
+
 ### Tests et lint
 
 ```bash
@@ -65,6 +71,16 @@ Le volume `/data` doit être persistant pour ne pas perdre les mappings
 
 ## CI/CD
 
-Chaque push sur `main` (et chaque tag `vX.Y.Z`) lance les tests + lint, puis publie
-une image sur GHCR : `ghcr.io/<owner>/gerboise:latest` (main) ou
-`ghcr.io/<owner>/gerboise:<version>` (tag).
+Chaque push sur `main` lance les tests + lint, puis :
+
+1. [python-semantic-release](https://python-semantic-release.readthedocs.io/) analyse
+   les commits depuis la dernière release. S'il trouve des commits
+   [conventionnels](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
+   `perf:`, `BREAKING CHANGE:`...), il bump la version dans `pyproject.toml`,
+   met à jour `CHANGELOG.md`, commit, crée le tag `vX.Y.Z` et le pousse sur `main`.
+2. L'image Docker est buildée et publiée sur GHCR :
+   `ghcr.io/<owner>/gerboise:latest` toujours, et
+   `ghcr.io/<owner>/gerboise:<version>` si une release a eu lieu à l'étape 1.
+
+Sans commit `feat:`/`fix:` (etc.) depuis la dernière release, seul `:latest` est
+republié — pas de nouvelle version taguée.

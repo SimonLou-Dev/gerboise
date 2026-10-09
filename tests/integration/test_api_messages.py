@@ -36,8 +36,33 @@ async def test_post_message_creates_message_and_registers_buttons(client, fake_b
     assert post_call[0] == "post"
     assert post_call[1] == "100"
     assert post_call[2] == "hello"
-    assert post_call[3][0].custom_id == "go"
+    assert post_call[3] is None
+    assert post_call[4][0].custom_id == "go"
     assert await get_channel_id(session, message_id) == "100"
+
+
+async def test_post_message_with_embed(client, fake_bot):
+    response = await client.post(
+        "/messages",
+        json={
+            "channel_id": "100",
+            "content": "hello",
+            "embed": {
+                "title": "Mises à jour en attente",
+                "description": "3 apps à mettre à jour",
+                "color": 0x00FF00,
+                "fields": [{"name": "app1", "value": "1.2.3 -> 1.3.0"}],
+            },
+            "buttons": [],
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 200
+    post_call = fake_bot.calls[0]
+    embed = post_call[3]
+    assert embed.title == "Mises à jour en attente"
+    assert embed.fields[0].name == "app1"
 
 
 async def test_patch_message_content_only_leaves_buttons_untouched(client, fake_bot):
@@ -53,7 +78,7 @@ async def test_patch_message_content_only_leaves_buttons_untouched(client, fake_
 
     assert response.status_code == 200
     edit_call = fake_bot.calls[-1]
-    assert edit_call == ("edit", "100", message_id, "updated", None)
+    assert edit_call == ("edit", "100", message_id, "updated", None, None)
 
 
 async def test_patch_message_replaces_buttons(client, fake_bot):
@@ -76,7 +101,7 @@ async def test_patch_message_replaces_buttons(client, fake_bot):
     assert response.status_code == 200
     edit_call = fake_bot.calls[-1]
     assert edit_call[0] == "edit"
-    new_buttons = edit_call[4]
+    new_buttons = edit_call[5]
     assert new_buttons[0].custom_id == "stop"
 
 

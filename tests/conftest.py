@@ -28,17 +28,23 @@ class FakeBot:
     def is_ready(self) -> bool:
         return True
 
-    async def post_message(self, channel_id, content, buttons):
+    async def post_message(self, channel_id, content, embed, buttons):
         self._next_id += 1
         message_id = str(self._next_id)
-        self.calls.append(("post", channel_id, content, buttons))
+        self.calls.append(("post", channel_id, content, embed, buttons))
         return message_id
 
-    async def edit_message(self, channel_id, message_id, content, buttons):
-        self.calls.append(("edit", channel_id, message_id, content, buttons))
+    async def edit_message(self, channel_id, message_id, content, embed, buttons):
+        self.calls.append(("edit", channel_id, message_id, content, embed, buttons))
 
     async def delete_message(self, channel_id, message_id):
         self.calls.append(("delete", channel_id, message_id))
+
+    async def create_thread(self, channel_id, message_id, name, auto_archive_duration):
+        self._next_id += 1
+        thread_id = str(self._next_id)
+        self.calls.append(("create_thread", channel_id, message_id, name, auto_archive_duration))
+        return thread_id
 
 
 @pytest.fixture
