@@ -1,6 +1,6 @@
 [project]
 name = "gerboise"
-version = "0.1.0"
+version = "0.1.1"
 description = "Bot Discord pilotable par API HTTP interne"
 authors = [
     {name = "Simon Bidet",email = "simon.bidet@pm.me"}

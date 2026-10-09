@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v0.1.1 (2026-10-09)
+
+### Bug Fixes
+
+- Install curl for healthcheck, validate Discord IDs, constant-time token check
+  ([`9964c36`](https://github.com/SimonLou-Dev/gerboise/commit/9964c361cfd15dd4aef83a3357ce52e6bce5e606))
+
+- Dockerfile: install curl (python:3.14-slim has neither wget nor curl by default, which made the
+  Ansible-side liveness probe fail its exec and restart-loop the container) - discord_bot.py:
+  validate channel_id/message_id as proper snowflakes and catch discord.NotFound/Forbidden in
+  post_message/edit_message/create_thread, returning clean 422/404/403 instead of an unhandled 500
+  (delete_message already did this, the others didn't) - security.py: compare the bearer token with
+  hmac.compare_digest instead of != to avoid a timing side-channel
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+
+
 ## v0.1.0 (2026-10-09)
 
 ### Features
