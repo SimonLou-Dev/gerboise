@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 import discord
 from discord import app_commands
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from gerboise.buttons_service import get_callback_url
@@ -12,6 +13,16 @@ from gerboise.callback import relay_click
 from gerboise.schemas import ButtonIn, ClickPayload, ClickUser, EmbedIn
 
 logger = logging.getLogger(__name__)
+
+
+def _to_snowflake(value: str, field_name: str) -> int:
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid {field_name}: {value!r} is not a valid Discord ID",
+        ) from exc
 
 
 def _build_view(buttons: list[ButtonIn]) -> discord.ui.View | None:
@@ -84,6 +95,24 @@ class GerboiseBot(discord.Client):
     async def on_ready(self) -> None:
         logger.info("Logged in as %s", self.user)
 
+    async def _fetch_channel(self, channel_id: str) -> discord.abc.Messageable:
+        try:
+            return await self.fetch_channel(_to_snowflake(channel_id, "channel_id"))
+        except discord.NotFound as exc:
+            raise HTTPException(status_code=404, detail="Channel not found") from exc
+        except discord.Forbidden as exc:
+            raise HTTPException(status_code=403, detail="Bot lacks access to this channel") from exc
+
+    async def _fetch_message(
+        self, channel: discord.abc.Messageable, message_id: str
+    ) -> discord.Message:
+        try:
+            return await channel.fetch_message(_to_snowflake(message_id, "message_id"))
+        except discord.NotFound as exc:
+            raise HTTPException(status_code=404, detail="Message not found") from exc
+        except discord.Forbidden as exc:
+            raise HTTPException(status_code=403, detail="Bot lacks access to this message") from exc
+
     async def post_message(
         self,
         channel_id: str,
@@ -91,7 +120,7 @@ class GerboiseBot(discord.Client):
         embed: EmbedIn | None,
         buttons: list[ButtonIn],
     ) -> str:
-        channel = await self.fetch_channel(int(channel_id))
+        channel = await self._fetch_channel(channel_id)
         message = await channel.send(
             content=content, embed=_build_embed(embed), view=_build_view(buttons)
         )
@@ -105,8 +134,8 @@ class GerboiseBot(discord.Client):
         embed: EmbedIn | None,
         buttons: list[ButtonIn] | None,
     ) -> None:
-        channel = await self.fetch_channel(int(channel_id))
-        message = await channel.fetch_message(int(message_id))
+        channel = await self._fetch_channel(channel_id)
+        message = await self._fetch_message(channel, message_id)
         kwargs: dict[str, object] = {}
         if content is not None:
             kwargs["content"] = content
@@ -119,15 +148,15 @@ class GerboiseBot(discord.Client):
     async def create_thread(
         self, channel_id: str, message_id: str, name: str, auto_archive_duration: int
     ) -> str:
-        channel = await self.fetch_channel(int(channel_id))
-        message = await channel.fetch_message(int(message_id))
+        channel = await self._fetch_channel(channel_id)
+        message = await self._fetch_message(channel, message_id)
         thread = await message.create_thread(name=name, auto_archive_duration=auto_archive_duration)
         return str(thread.id)
 
     async def delete_message(self, channel_id: str, message_id: str) -> None:
-        channel = await self.fetch_channel(int(channel_id))
+        channel = await self._fetch_channel(channel_id)
         try:
-            message = await channel.fetch_message(int(message_id))
+            message = await channel.fetch_message(_to_snowflake(message_id, "message_id"))
         except discord.NotFound:
             return
         with suppress(discord.NotFound):

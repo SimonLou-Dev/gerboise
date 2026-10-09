@@ -7,6 +7,9 @@ RUN poetry config virtualenvs.in-project true \
 COPY gerboise ./gerboise
 
 FROM python:3.14-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 RUN useradd -u 1000 -m gerboise && mkdir -p /data && chown gerboise:gerboise /data
 WORKDIR /app
 COPY --from=builder /app/.venv ./.venv
